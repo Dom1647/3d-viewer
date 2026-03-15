@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>3D Viewer</title>
+    <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.4.0/model-viewer.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #0a0a0a;
+            color: white;
+            height: 100dvh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .header {
+            display: flex;
+            align-items: center;
+            padding: 16px;
+            background: rgba(20, 20, 30, 0.95);
+            backdrop-filter: blur(20px);
+        }
+
+        .header button {
+            background: none;
+            border: none;
+            color: #667eea;
+            font-size: 16px;
+            cursor: pointer;
+        }
+
+        .header h1 {
+            flex: 1;
+            text-align: center;
+            font-size: 17px;
+            font-weight: 600;
+        }
+
+        model-viewer {
+            flex: 1;
+            width: 100%;
+            background: radial-gradient(ellipse at center, #1a1a2e 0%, #0a0a0a 70%);
+            --poster-color: transparent;
+        }
+
+        .bottom-bar {
+            padding: 16px;
+            background: rgba(20, 20, 30, 0.95);
+            backdrop-filter: blur(20px);
+        }
+
+        .bottom-bar button {
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 14px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        #model-name {
+            text-align: center;
+            padding: 8px;
+            font-size: 13px;
+            color: #888;
+        }
+
+        #loading-viewer {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            color: #667eea;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <button onclick="history.back()">← Zurück</button>
+        <h1>3D Ansicht</h1>
+        <div style="width:50px"></div>
+    </div>
+
+    <div id="model-name">Laden...</div>
+
+    <div id="loading-viewer">
+        ⏳ Modell wird geladen...
+    </div>
+
+    <model-viewer
+        id="viewer"
+        style="display:none"
+        camera-controls
+        touch-action="pan-y"
+        auto-rotate
+        shadow-intensity="1"
+        exposure="1"
+        environment-image="neutral"
+        camera-orbit="45deg 55deg 2.5m"
+        min-camera-orbit="auto auto auto"
+        max-camera-orbit="auto auto auto"
+        interaction-prompt="auto"
+    ></model-viewer>
+
+    <div class="bottom-bar">
+        <button id="ar-btn" onclick="openAR()">📱 In AR ansehen</button>
+    </div>
+
+    <script type="module">
+        import { db, doc, getDocs, collection } from './firebase-config.js';
+
+        const params = new URLSearchParams(window.location.search);
+        const id = params.get('id');
+
+        async function loadModel() {
+            if (!id) {
+                document.getElementById('model-name').textContent = 'Kein Modell angegeben';
+                return;
+            }
+
+            try {
+                const snapshot = await getDocs(collection(db, 'placements'));
+                let placement = null;
+
+                snapshot.forEach((docSnap) => {
+                    if (docSnap.id === id) {
+                        placement = docSnap.data();
+                        placement.id = docSnap.id;
+                    }
+                });
+
+                if (placement) {
+                    document.getElementById('model-name').textContent = placement.name || 'Unbenanntes Modell';
+
+                    const viewer = document.getElementById('viewer');
+                    viewer.src = placement.modelUrl;
+                    viewer.alt = placement.name;
+                    viewer.style.display = 'block';
+                    document.getElementById('loading-viewer').style.display = 'none';
+
+                    // AR-Button konfigurieren
+                    window.currentPlacement = placement;
+                } else {
+                    document.getElementById('model-name').textContent = 'Modell nicht gefunden';
+                }
+            } catch (error) {
+                console.error('Fehler:', error);
+                document.getElementById('model-name').textContent = 'Fehler beim Laden';
+            }
+        }
+
+        window.openAR = function() {
+            if (window.currentPlacement) {
+                window.location.href = `ar.html?id=${window.currentPlacement.id}`;
+            }
+        }
+
+        loadModel();
+    </script>
+</body>
+</html>
