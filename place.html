@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Modell platzieren</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #0a0a0a;
+            color: white;
+            height: 100dvh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Header */
+        .header {
+            display: flex;
+            align-items: center;
+            padding: 16px;
+            background: rgba(20, 20, 30, 0.95);
+            backdrop-filter: blur(20px);
+        }
+
+        .header button {
+            background: none;
+            border: none;
+            color: #667eea;
+            font-size: 16px;
+            cursor: pointer;
+        }
+
+        .header h1 {
+            flex: 1;
+            text-align: center;
+            font-size: 17px;
+            font-weight: 600;
+        }
+
+        /* Mini-Karte */
+        #mini-map {
+            width: 100%;
+            height: 200px;
+        }
+
+        .crosshair {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 1000;
+            font-size: 30px;
+            pointer-events: none;
+            text-shadow: 0 0 10px rgba(0,0,0,0.8);
+        }
+
+        .map-container {
+            position: relative;
+        }
+
+        /* Formular */
+        .form {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        .form label {
+            display: block;
+            font-size: 13px;
+            color: #888;
+            margin-bottom: 6px;
+            margin-top: 16px;
+        }
+
+        .form label:first-child {
+            margin-top: 0;
+        }
+
+        .form input, .form textarea, .form select {
+            width: 100%;
+            padding: 14px;
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 12px;
+            color: white;
+            font-size: 16px;
+            outline: none;
+        }
+
+        .form input:focus, .form textarea:focus, .form select:focus {
+            border-color: #667eea;
+        }
+
+        .form textarea {
+            height: 80px;
+            resize: none;
+        }
+
+        /* Emoji-Picker */
+        .emoji-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 6px;
+        }
+
+        .emoji-option {
+            width: 44px;
+            height: 44px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(255, 255, 255, 0.08);
+            border-radius: 12px;
+            font-size: 22px;
+            cursor: pointer;
+            border: 2px solid transparent;
+            transition: all 0.2s;
+        }
+
+        .emoji-option.selected {
+            border-color: #667eea;
+            background: rgba(102, 126, 234, 0.2);
+        }
+
+        /* Submit Button */
+        .submit-btn {
+            margin-top: 24px;
+            width: 100%;
+            padding: 16px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 14px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .submit-btn:disabled {
+            opacity: 0.5;
+        }
+
+        /* Koordinaten-Anzeige */
+        .coords {
+            text-align: center;
+            padding: 8px;
+            font-size: 12px;
+            color: #666;
+            background: rgba(20, 20, 30, 0.8);
+        }
+
+        /* Beispiel-Modelle */
+        .model-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            margin-top: 6px;
+        }
+
+        .model-option {
+            padding: 12px;
+            background: rgba(255, 255, 255, 0.08);
+            border: 2px solid transparent;
+            border-radius: 12px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .model-option.selected {
+            border-color: #667eea;
+            background: rgba(102, 126, 234, 0.2);
+        }
+
+        .model-option .model-emoji {
+            font-size: 28px;
+        }
+
+        .model-option .model-name {
+            font-size: 12px;
+            color: #aaa;
+            margin-top: 4px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <button onclick="window.location.href='index.html'">← Zurück</button>
+        <h1>Modell platzieren</h1>
+        <div style="width:50px"></div>
+    </div>
+
+    <div class="map-container">
+        <div id="mini-map"></div>
+        <div class="crosshair">📍</div>
+    </div>
+    <div class="coords" id="coords">Lade Position...</div>
+
+    <div class="form">
+        <label>Name</label>
+        <input type="text" id="name" placeholder="z.B. Mein Modell">
+
+        <label>Beschreibung</label>
+        <textarea id="description" placeholder="Kurze Beschreibung..."></textarea>
+
+        <label>Modell auswählen</label>
+        <div class="model-grid" id="model-grid"></div>
+
+        <label>Eigene Modell-URL (optional, .glb)</label>
+        <input type="url" id="custom-url" placeholder="https://example.com/model.glb">
+
+        <label>Marker-Emoji</label>
+        <div class="emoji-grid" id="emoji-grid"></div>
+
+        <button class="submit-btn" id="submit-btn" onclick="submitPlacement()">
+            ✅ Platzieren
+        </button>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script type="module">
+        import { db, collection, addDoc } from './firebase-config.js';
+
+        let miniMap;
+        let selectedEmoji = '📦';
+        let selectedModel = null;
+
+        // Beispiel-Modelle (kostenlose GLB-Dateien)
+        const exampleModels = [
+            { name: 'Astronaut', emoji: '👨‍🚀', url: 'https://modelviewer.dev/shared-assets/models/Astronaut.glb' },
+            { name: 'Roboter', emoji: '🤖', url: 'https://modelviewer.dev/shared-assets/models/RobotExpressive.glb' },
+            { name: 'Pferd', emoji: '🐴', url: 'https://modelviewer.dev/shared-assets/models/Horse.glb' },
+            { name: 'Stuhl', emoji: '🪑', url: 'https://modelviewer.dev/shared-assets/models/SheenChair.glb' },
+        ];
+
+        const emojis = ['📦', '🏠', '🚗', '🌳', '⭐', '🎮', '🗿', '🎨', '🔮', '🏛️', '🚀', '💎'];
+
+        // Mini-Karte
+        function initMiniMap() {
+            miniMap = L.map('mini-map', {
+                zoomControl: false
+            }).setView([51.1657, 10.4515], 15);
+
+            L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+                maxZoom: 19
+            }).addTo(miniMap);
+
+            // GPS
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(
+                    (pos) => {
+                        miniMap.setView([pos.coords.latitude, pos.coords.longitude], 17);
+                        updateCoords();
+                    },
+                    () => updateCoords()
+                );
+            }
+
+            miniMap.on('move', updateCoords);
+        }
+
+        function updateCoords() {
+            const center = miniMap.getCenter();
+            document.getElementById('coords').textContent =
+                `${center.lat.toFixed(5)}, ${center.lng.toFixed(5)}`;
+        }
+
+        // Modell-Grid
+        function renderModelGrid() {
+            const grid = document.getElementById('model-grid');
+            exampleModels.forEach((model, i) => {
+                const div = document.createElement('div');
+                div.className = 'model-option';
+                div.innerHTML = `<div class="model-emoji">${model.emoji}</div><div class="model-name">${model.name}</div>`;
+                div.onclick = () => {
+                    document.querySelectorAll('.model-option').forEach(el => el.classList.remove('selected'));
+                    div.classList.add('selected');
+                    selectedModel = model;
+                };
+                grid.appendChild(div);
+            });
+        }
+
+        // Emoji-Grid
+        function renderEmojiGrid() {
+            const grid = document.getElementById('emoji-grid');
+            emojis.forEach(emoji => {
+                const div = document.createElement('div');
+                div.className = 'emoji-option' + (emoji === selectedEmoji ? ' selected' : '');
+                div.textContent = emoji;
+                div.onclick = () => {
+                    document.querySelectorAll('.emoji-option').forEach(el => el.classList.remove('selected'));
+                    div.classList.add('selected');
+                    selectedEmoji = emoji;
+                };
+                grid.appendChild(div);
+            });
+        }
+
+        // Platzierung speichern
+        window.submitPlacement = async function() {
+            const name = document.getElementById('name').value.trim();
+            const description = document.getElementById('description').value.trim();
+            const customUrl = document.getElementById('custom-url').value.trim();
+            const center = miniMap.getCenter();
+
+            const modelUrl = customUrl || (selectedModel ? selectedModel.url : null);
+
+            if (!name) {
+                alert('Bitte einen Namen eingeben!');
+                return;
+            }
+
+            if (!modelUrl) {
+                alert('Bitte ein Modell auswählen oder eine URL eingeben!');
+                return;
+            }
+
+            const btn = document.getElementById('submit-btn');
+            btn.disabled = true;
+            btn.textContent = '⏳ Wird gespeichert...';
+
+            try {
+                await addDoc(collection(db, 'placements'), {
+                    name: name,
+                    description: description,
+                    modelUrl: modelUrl,
+                    emoji: selectedEmoji,
+                    lat: center.lat,
+                    lng: center.lng,
+                    createdAt: new Date().toISOString()
+                });
+
+                alert('✅ Modell erfolgreich platziert!');
+                window.location.href = 'index.html';
+            } catch (error) {
+                console.error('Fehler:', error);
+                alert('❌ Fehler beim Speichern: ' + error.message);
+                btn.disabled = false;
+                btn.textContent = '✅ Platzieren';
+            }
+        }
+
+        // Init
+        initMiniMap();
+        renderModelGrid();
+        renderEmojiGrid();
+    </script>
+</body>
+</html>
